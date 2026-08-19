@@ -2,8 +2,8 @@
   "name": "FitJourney - מעקב אימונים, תזונה ומשקל",
   "short_name": "FitJourney",
   "description": "מעקב אישי אחר אימונים, תזונה ומשקל",
-  "start_url": "/train-track-improve/",
-  "scope": "/train-track-improve/",
+  "start_url": "/Train-Track-Improve/",
+  "scope": "/Train-Track-Improve/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f6efe2",
@@ -11,8 +11,8 @@
   "dir": "rtl",
   "lang": "he",
   "icons": [
-    { "src": "/train-track-improve/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/train-track-improve/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/train-track-improve/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/Train-Track-Improve/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/Train-Track-Improve/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/Train-Track-Improve/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
