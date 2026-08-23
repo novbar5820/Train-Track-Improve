@@ -37,11 +37,19 @@ export const DEFAULT_SETTINGS: AppSettings = {
     fat: 70,
     carbs: 230,
   },
+  units: "metric",
 };
 
 export async function getSettings(): Promise<AppSettings> {
   const s = await db.settings.get("singleton");
-  if (s) return s;
+  if (s) {
+    if (!s.units) {
+      const patched: AppSettings = { ...s, units: "metric" };
+      await db.settings.put(patched);
+      return patched;
+    }
+    return s;
+  }
   await db.settings.put(DEFAULT_SETTINGS);
   return DEFAULT_SETTINGS;
 }
