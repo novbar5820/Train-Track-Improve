@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Sheet } from "./Sheet";
 import { FOODS, FOOD_CATEGORIES } from "../data/foods";
-import { macrosFor } from "../utils/nutrition";
+import { IconSearch, IconClose, IconPlus, IconCheck } from "./Icons";
 import type { FoodItem } from "../types";
 
 export function FoodSearchSheet({
@@ -15,9 +15,7 @@ export function FoodSearchSheet({
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("all");
-  const [selected, setSelected] = useState<FoodItem | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [unitId, setUnitId] = useState("gram");
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return FOODS.filter((f) => {
@@ -27,26 +25,17 @@ export function FoodSearchSheet({
     }).slice(0, 60);
   }, [query, category]);
 
-  function pick(food: FoodItem) {
-    setSelected(food);
-    const defaultUnit = food.units.find((u) => u.id !== "gram") ?? food.units[0];
-    setUnitId(defaultUnit.id);
-    setQuantity(1);
-  }
-
   function reset() {
-    setSelected(null);
     setQuery("");
+    setCategory("all");
   }
 
-  function handleAdd() {
-    if (!selected) return;
-    onAdd(selected, quantity, unitId);
-    reset();
-    onClose();
+  function handleAdd(food: FoodItem) {
+    const defaultUnit = food.units.find((u) => u.id !== "gram") ?? food.units[0];
+    onAdd(food, 1, defaultUnit.id);
+    setJustAddedId(food.id);
+    setTimeout(() => setJustAddedId((id) => (id === food.id ? null : id)), 900);
   }
-
-  const preview = selected ? macrosFor(selected, quantity, unitId) : null;
 
   return (
     <Sheet
@@ -56,116 +45,82 @@ export function FoodSearchSheet({
         onClose();
       }}
     >
-      {!selected ? (
-        <>
-          <h3 className="center" style={{ marginBottom: 14 }}>
-            הוספת מאכל
-          </h3>
-          <input
-            className="input"
-            placeholder="חיפוש מאכל..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{ width: "100%", marginBottom: 10 }}
-          />
-          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 8 }}>
-            <button
-              className="chip"
-              style={category === "all" ? { background: "var(--gold-line)", color: "#4a3410" } : undefined}
-              onClick={() => setCategory("all")}
-            >
-              הכל
-            </button>
-            {FOOD_CATEGORIES.map((c) => (
-              <button
-                key={c}
-                className="chip"
-                style={{
-                  whiteSpace: "nowrap",
-                  ...(category === c ? { background: "var(--gold-line)", color: "#4a3410" } : {}),
-                }}
-                onClick={() => setCategory(c)}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-          <div className="col" style={{ gap: 6, maxHeight: "48vh", overflowY: "auto", marginTop: 6 }}>
-            {filtered.map((f) => (
-              <div key={f.id} className="list-item card--pressable" onClick={() => pick(f)}>
-                <div className="col" style={{ gap: 2, flex: 1 }}>
-                  <span className="bold small">{f.name}</span>
-                  <span className="tiny muted">
-                    {f.category} · {f.per100g.calories} קק"ל ל-100 גרם
-                  </span>
-                </div>
-              </div>
-            ))}
-            {filtered.length === 0 && <div className="empty-state small">לא נמצאו מאכלים</div>}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="row" style={{ marginBottom: 14 }}>
-            <button className="link-btn" onClick={() => setSelected(null)}>
-              → חזרה
-            </button>
-          </div>
-          <h3 style={{ marginBottom: 4 }}>{selected.name}</h3>
-          <p className="small muted" style={{ marginBottom: 14 }}>
-            {selected.per100g.calories} קק"ל / 100 גרם
-          </p>
+      <div className="sheet-topbar">
+        <span style={{ fontSize: 22, fontWeight: 800 }}>הוספת מאכל</span>
+        <button
+          className="sheet-close"
+          onClick={() => {
+            reset();
+            onClose();
+          }}
+        >
+          <IconClose size={24} color="var(--brown)" strokeWidth={3} />
+        </button>
+      </div>
 
-          <div className="row" style={{ gap: 10, marginBottom: 14 }}>
-            <div className="field" style={{ flex: 1 }}>
-              <label className="field__label">כמות</label>
-              <input
-                type="number"
-                min={0}
-                step={0.5}
-                className="input"
-                value={quantity}
-                onChange={(e) => setQuantity(Number(e.target.value) || 0)}
-              />
-            </div>
-            <div className="field" style={{ flex: 1 }}>
-              <label className="field__label">יחידה</label>
-              <select className="input" value={unitId} onChange={(e) => setUnitId(e.target.value)}>
-                {selected.units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+      <div className="row" style={{ gap: 10, border: "2.5px solid var(--line)", borderRadius: 18, padding: "12px 14px" }}>
+        <IconSearch size={24} color="var(--brown-2)" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="חיפוש מאכל…"
+          style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 18, fontWeight: 700 }}
+        />
+      </div>
 
-          {preview && (
-            <div className="card" style={{ marginBottom: 14 }}>
-              <div className="row-between">
-                <span className="small">קלוריות</span>
-                <span className="bold small">{Math.round(preview.calories)} קק"ל</span>
-              </div>
-              <div className="row-between">
-                <span className="small">חלבון</span>
-                <span className="bold small">{preview.protein.toFixed(1)} גרם</span>
-              </div>
-              <div className="row-between">
-                <span className="small">שומן</span>
-                <span className="bold small">{preview.fat.toFixed(1)} גרם</span>
-              </div>
-              <div className="row-between">
-                <span className="small">פחמימה</span>
-                <span className="bold small">{preview.carbs.toFixed(1)} גרם</span>
-              </div>
-            </div>
-          )}
-
-          <button className="btn btn--gold btn--block" onClick={handleAdd}>
-            הוספה ליומן
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+        <button className={`chip ${category === "all" ? "chip--active" : ""}`} style={{ whiteSpace: "nowrap" }} onClick={() => setCategory("all")}>
+          הכל
+        </button>
+        {FOOD_CATEGORIES.map((c) => (
+          <button
+            key={c}
+            className={`chip ${category === c ? "chip--active" : ""}`}
+            style={{ whiteSpace: "nowrap" }}
+            onClick={() => setCategory(c)}
+          >
+            {c}
           </button>
-        </>
-      )}
+        ))}
+      </div>
+
+      <div className="col" style={{ gap: 9, maxHeight: "48vh", overflowY: "auto" }}>
+        {filtered.map((f) => (
+          <div
+            key={f.id}
+            className="row card--pressable"
+            style={{ gap: 12, border: "2.5px solid var(--line)", borderRadius: 18, padding: "10px 12px", cursor: "pointer" }}
+            onClick={() => handleAdd(f)}
+          >
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--brown-2)" }}>{f.per100g.calories}</span>
+            </div>
+            <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 18, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</span>
+              <span className="tiny muted">{f.category} · {f.per100g.calories} קק"ל ל-100 גרם</span>
+            </div>
+            <span
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 13,
+                background: "var(--gold)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              {justAddedId === f.id ? (
+                <IconCheck size={24} color="var(--gold-text)" strokeWidth={3.2} />
+              ) : (
+                <IconPlus size={24} color="var(--gold-text)" strokeWidth={3.2} />
+              )}
+            </span>
+          </div>
+        ))}
+        {filtered.length === 0 && <div className="empty-state small">לא נמצאו מאכלים</div>}
+      </div>
     </Sheet>
   );
 }
