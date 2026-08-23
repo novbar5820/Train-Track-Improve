@@ -57,3 +57,28 @@ export function formatShort(d: Date): string {
     d.getMonth() + 1
   ).padStart(2, "0")}`;
 }
+
+const WEEKDAY_LETTER_HE = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
+
+/** "יום ג'" */
+export function hebrewWeekdayShort(d: Date): string {
+  return `יום ${WEEKDAY_LETTER_HE[d.getDay()]}'`;
+}
+
+const HEBREW_MONTHS = [
+  "בינואר", "בפברואר", "במרץ", "באפריל", "במאי", "ביוני",
+  "ביולי", "באוגוסט", "בספטמבר", "באוקטובר", "בנובמבר", "בדצמבר",
+];
+
+/** "22 באוגוסט" */
+export function formatHebrewDate(d: Date): string {
+  return `${d.getDate()} ${HEBREW_MONTHS[d.getMonth()]}`;
+}
+
+/** ברכה לפי שעת היום */
+export function greetingForHour(hour: number): string {
+  if (hour >= 5 && hour < 12) return "בוקר טוב";
+  if (hour >= 12 && hour < 18) return "צהריים טובים";
+  if (hour >= 18 && hour < 22) return "ערב טוב";
+  return "לילה טוב";
+}

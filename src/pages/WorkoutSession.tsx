@@ -5,10 +5,9 @@ import { db } from "../db/db";
 import { getExerciseById, MUSCLE_GROUP_LABELS } from "../data/exercises";
 import { ExerciseIcon } from "../components/ExerciseIcon";
 import { Sheet } from "../components/Sheet";
-import { AreaChart } from "../components/AreaChart";
 import { RestTimerBar } from "../components/RestTimerBar";
-import { bestSetWeight, isNewPR } from "../utils/workoutStats";
-import { formatShort } from "../utils/date";
+import { isNewPR } from "../utils/workoutStats";
+import { IconClose, IconClock, IconChevronForward, IconTrophy, IconCheck, IconPlus } from "../components/Icons";
 import type { SessionExercise, SetEntry, WorkoutPlan } from "../types";
 
 function fmtTime(totalSeconds: number): string {
@@ -95,11 +94,11 @@ export function WorkoutSession() {
     updateExerciseSets(exerciseId, sets);
   }
 
-  function patchSet(exerciseId: string, index: number, patch: Partial<SetEntry>) {
+  function bumpWeight(exerciseId: string, index: number, delta: number) {
     if (!session) return;
     const ex = session.exercises.find((e) => e.exerciseId === exerciseId);
     if (!ex) return;
-    const sets = ex.sets.map((s, i) => (i === index ? { ...s, ...patch } : s));
+    const sets = ex.sets.map((s, i) => (i === index ? { ...s, weight: Math.max(0, s.weight + delta) } : s));
     updateExerciseSets(exerciseId, sets);
   }
 
@@ -109,14 +108,6 @@ export function WorkoutSession() {
     if (!ex) return;
     const last = ex.sets[ex.sets.length - 1];
     const sets = [...ex.sets, { weight: last?.weight ?? 0, reps: last?.reps ?? 10, done: false }];
-    updateExerciseSets(exerciseId, sets);
-  }
-
-  function removeSet(exerciseId: string, index: number) {
-    if (!session) return;
-    const ex = session.exercises.find((e) => e.exerciseId === exerciseId);
-    if (!ex || ex.sets.length <= 1) return;
-    const sets = ex.sets.filter((_, i) => i !== index);
     updateExerciseSets(exerciseId, sets);
   }
 
@@ -131,17 +122,10 @@ export function WorkoutSession() {
   }
 
   const doneExercisesCount = session.exercises.filter((e) => e.sets.every((s) => s.done)).length;
-  const activeEx = activeExerciseId ? session.exercises.find((e) => e.exerciseId === activeExerciseId) : null;
+  const currentIndex = session.exercises.findIndex((e) => !e.sets.every((s) => s.done));
+  const activeIndex = activeExerciseId ? session.exercises.findIndex((e) => e.exerciseId === activeExerciseId) : -1;
+  const activeEx = activeIndex >= 0 ? session.exercises[activeIndex] : null;
   const activeExDef = activeExerciseId ? getExerciseById(activeExerciseId) : null;
-
-  const history = activeExerciseId
-    ? [...allSessions]
-        .filter((s) => s.startedAt < session.startedAt || s.id === session.id)
-        .sort((a, b) => a.startedAt - b.startedAt)
-        .map((s) => ({ s, w: bestSetWeight(s, activeExerciseId) }))
-        .filter((x) => x.w !== null)
-        .map((x) => ({ label: formatShort(new Date(x.s.startedAt)), value: x.w as number }))
-    : [];
 
   const bestEver = activeExerciseId
     ? [...allSessions]
@@ -154,167 +138,233 @@ export function WorkoutSession() {
         .sort((a, b) => b.weight - a.weight)[0]
     : undefined;
 
+  function goToExercise(delta: number) {
+    if (activeIndex < 0) return;
+    const nextIndex = activeIndex + delta;
+    const next = session!.exercises[nextIndex];
+    if (next) setActiveExerciseId(next.exerciseId);
+  }
+
   return (
-    <div className="screen" style={{ paddingBottom: 40 }}>
-      <div className="topbar" style={{ padding: 0 }}>
-        <button className="link-btn" onClick={() => navigate("/plans")}>
-          יציאה
+    <div className="screen" style={{ paddingBottom: 24 }}>
+      <div className="row-between">
+        <button className="btn btn--icon btn--ghost" onClick={() => navigate("/plans")}>
+          <IconClose size={26} color="var(--brown)" strokeWidth={2.8} />
         </button>
-        <span className="bold small muted">
-          {doneExercisesCount}/{session.exercises.length} תרגילים הושלמו
-        </span>
-        <span className="link-btn" style={{ visibility: "hidden" }}>
-          x
+        <div
+          className="row"
+          style={{ gap: 8, padding: "11px 16px", borderRadius: 16, background: "var(--brown)" }}
+        >
+          <IconClock size={22} color="#fff" strokeWidth={2.8} />
+          <span style={{ fontSize: 19, fontWeight: 800, color: "#fff", fontVariantNumeric: "tabular-nums" }}>
+            {fmtTime(elapsedSeconds)}
+          </span>
+        </div>
+        <span style={{ width: 46 }} />
+      </div>
+
+      <div className="row-between" style={{ alignItems: "baseline" }}>
+        <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.7px" }}>{session.dayName}</span>
+        <span style={{ fontSize: 16, fontWeight: 800, color: "var(--ink-2)" }}>
+          {doneExercisesCount}/{session.exercises.length}
         </span>
       </div>
 
-      <div className="card row-between">
-        <div className="col center" style={{ flex: 1 }}>
-          <span className="tiny muted">זמן</span>
-          <span className="bold">{fmtTime(elapsedSeconds)}</span>
+      <div style={{ display: "flex", border: "2.5px solid var(--line)", borderRadius: 22, overflow: "hidden" }}>
+        <div className="col" style={{ flex: 1, alignItems: "center", gap: 2, padding: "12px 4px" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ink-2)" }}>נפח</span>
+          <span style={{ fontSize: 23, fontWeight: 800 }}>{totals.volume.toLocaleString()}</span>
         </div>
-        <div className="divider" style={{ width: 1, height: 30, background: "var(--border)" }} />
-        <div className="col center" style={{ flex: 1 }}>
-          <span className="tiny muted">נפח</span>
-          <span className="bold">{totals.volume.toLocaleString()} ק"ג</span>
+        <span style={{ width: 2, background: "var(--line-2)" }} />
+        <div className="col" style={{ flex: 1, alignItems: "center", gap: 2, padding: "12px 4px" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ink-2)" }}>תרגילים</span>
+          <span style={{ fontSize: 23, fontWeight: 800 }}>
+            {doneExercisesCount}/{session.exercises.length}
+          </span>
         </div>
-        <div className="divider" style={{ width: 1, height: 30, background: "var(--border)" }} />
-        <div className="col center" style={{ flex: 1 }}>
-          <span className="tiny muted">חזרות</span>
-          <span className="bold">{totals.reps}</span>
+        <span style={{ width: 2, background: "var(--line-2)" }} />
+        <div className="col" style={{ flex: 1, alignItems: "center", gap: 2, padding: "12px 4px" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ink-2)" }}>חזרות</span>
+          <span style={{ fontSize: 23, fontWeight: 800 }}>{totals.reps}</span>
         </div>
       </div>
-
-      <h2>{session.dayName}</h2>
 
       <div className="col" style={{ gap: 10 }}>
-        {session.exercises.map((ex) => {
+        {session.exercises.map((ex, i) => {
           const def = getExerciseById(ex.exerciseId);
           if (!def) return null;
           const doneCount = ex.sets.filter((s) => s.done).length;
           const hasPR = ex.sets.some((s) => s.isPR);
-          const top = ex.sets.reduce((m, s) => (s.weight > m ? s.weight : m), 0);
+          const isCurrent = i === currentIndex;
           return (
-            <div key={ex.exerciseId} className="list-item card--pressable" onClick={() => setActiveExerciseId(ex.exerciseId)}>
+            <div
+              key={ex.exerciseId}
+              className="list-item card--pressable"
+              style={{ borderColor: isCurrent ? "var(--brown)" : "var(--line)", borderWidth: 2.5 }}
+              onClick={() => setActiveExerciseId(ex.exerciseId)}
+            >
               <div className="thumb">
                 <ExerciseIcon muscleGroup={def.muscleGroup} size={30} />
               </div>
-              <div className="col" style={{ flex: 1, gap: 2 }}>
-                <div className="row" style={{ gap: 6 }}>
-                  <span className="bold small">{def.name}</span>
-                  {hasPR && <span className="badge-pr">🏆 שיא</span>}
+              <div className="col" style={{ flex: 1, gap: 2, minWidth: 0 }}>
+                <div className="row" style={{ gap: 8 }}>
+                  <span style={{ fontSize: 19, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {def.name}
+                  </span>
+                  {hasPR && (
+                    <span className="badge-pr">
+                      <IconTrophy size={15} color="var(--gold-text)" />
+                      שיא
+                    </span>
+                  )}
                 </div>
                 <span className="tiny muted">
                   {doneCount}/{ex.sets.length} סטים · {MUSCLE_GROUP_LABELS[def.muscleGroup]}
-                  {top > 0 ? ` · שיא היום: ${top} ק"ג` : ""}
                 </span>
               </div>
-              <span style={{ color: "var(--text-mute)" }}>›</span>
+              <IconChevronForward size={26} color="var(--muted)" strokeWidth={3} />
             </div>
           );
         })}
       </div>
 
-      <button className="btn btn--gold btn--block" onClick={finishWorkout}>
+      {rest && <RestTimerBar secondsLeft={rest.secondsLeft} total={rest.total} onSkip={() => setRest(null)} onAdd={() => setRest((r) => (r ? { ...r, secondsLeft: r.secondsLeft + 15, total: r.total + 15 } : r))} />}
+
+      <button
+        className="btn btn--ghost btn--block"
+        style={{ height: 58, borderRadius: 20, fontSize: 20, color: "var(--brown)" }}
+        onClick={finishWorkout}
+      >
+        <IconCheck size={26} color="var(--brown)" strokeWidth={3} />
         סיום אימון
       </button>
-
-      {rest && (
-        <RestTimerBar
-          secondsLeft={rest.secondsLeft}
-          total={rest.total}
-          onSkip={() => setRest(null)}
-          onAdd={() => setRest((r) => (r ? { ...r, secondsLeft: r.secondsLeft + 15, total: r.total + 15 } : r))}
-        />
-      )}
 
       <Sheet open={activeExerciseId !== null} onClose={() => setActiveExerciseId(null)}>
         {activeEx && activeExDef && (
           <div className="col" style={{ gap: 14 }}>
-            <div className="row" style={{ gap: 12 }}>
-              <div className="thumb" style={{ width: 64, height: 64 }}>
-                <ExerciseIcon muscleGroup={activeExDef.muscleGroup} size={38} />
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button className="sheet-close" onClick={() => setActiveExerciseId(null)}>
+                <IconClose size={24} color="var(--brown)" strokeWidth={3} />
+              </button>
+            </div>
+
+            <div className="row" style={{ gap: 14 }}>
+              <div style={{ width: 56, height: 56, borderRadius: 18, background: "var(--brown)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <ExerciseIcon muscleGroup={activeExDef.muscleGroup} size={32} />
               </div>
-              <div className="col" style={{ gap: 4 }}>
-                <h3>{activeExDef.name}</h3>
-                <span className="chip">{MUSCLE_GROUP_LABELS[activeExDef.muscleGroup]}</span>
+              <div className="col" style={{ gap: 2, flex: 1 }}>
+                <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.6px", lineHeight: 1.15 }}>{activeExDef.name}</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--ink-2)" }}>{MUSCLE_GROUP_LABELS[activeExDef.muscleGroup]}</span>
               </div>
             </div>
 
-            <div>
-              <span className="bold small">המשקל הכי גבוה שהרמת</span>
+            <div className="row-between" style={{ padding: "10px 14px", borderRadius: 16, background: "var(--surface)" }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--ink-2)" }}>שיא אישי</span>
               {bestEver ? (
-                <p className="small muted">
-                  {bestEver.weight} ק"ג · {bestEver.reps} חזרות · {formatShort(new Date(bestEver.date))}
-                </p>
+                <span dir="rtl" style={{ fontSize: 19, fontWeight: 800, whiteSpace: "nowrap" }}>
+                  {bestEver.reps} חזרות · {bestEver.weight} ק"ג
+                </span>
               ) : (
-                <p className="small muted">עדיין אין נתונים קודמים לתרגיל זה</p>
+                <span className="small muted">אין עדיין נתונים</span>
               )}
-              <div style={{ marginTop: 6 }}>
-                <AreaChart points={history} />
-              </div>
             </div>
 
-            <hr className="divider" />
+            {rest && <RestTimerBar variant="compact" secondsLeft={rest.secondsLeft} total={rest.total} onSkip={() => setRest(null)} onAdd={() => setRest((r) => (r ? { ...r, secondsLeft: r.secondsLeft + 15, total: r.total + 15 } : r))} />}
 
-            <div className="col" style={{ gap: 8 }}>
+            <div className="col" style={{ gap: 9 }}>
               {activeEx.sets.map((set, i) => (
                 <div
                   key={i}
-                  className="row-between"
+                  className="row"
                   style={{
-                    padding: 10,
-                    borderRadius: "var(--radius-md)",
-                    background: set.done ? "var(--good-bg)" : "var(--surface-2)",
-                    border: "1px solid var(--border)",
+                    gap: 6,
+                    padding: "8px 10px",
+                    borderRadius: 18,
+                    border: `2.5px solid ${set.done ? "var(--brown)" : "var(--line-2)"}`,
+                    background: set.done ? "var(--surface-3)" : "#fff",
+                    boxSizing: "border-box",
+                    overflow: "hidden",
                   }}
                 >
-                  <span className="bold small" style={{ width: 20 }}>
+                  <span
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 11,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 15,
+                      fontWeight: 800,
+                      background: set.done ? "var(--brown)" : "var(--surface-2)",
+                      color: set.done ? "#fff" : "var(--ink-2)",
+                      flexShrink: 0,
+                    }}
+                  >
                     {i + 1}
                   </span>
-                  <div className="row" style={{ gap: 6 }}>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      className="input"
-                      style={{ width: 64, padding: "8px", textAlign: "center" }}
-                      value={set.weight}
-                      onChange={(e) => patchSet(activeExerciseId!, i, { weight: Number(e.target.value) || 0 })}
-                    />
-                    <span className="tiny muted">ק"ג</span>
+                  <div className="row" style={{ gap: 4, flexShrink: 0 }}>
+                    <button className="num-row__btn" style={{ width: 34, height: 34, fontSize: 20 }} onClick={() => bumpWeight(activeExerciseId!, i, -2.5)}>
+                      −
+                    </button>
+                    <div className="col" style={{ alignItems: "center", minWidth: 48, gap: 0 }}>
+                      <span style={{ fontSize: 21, fontWeight: 800, lineHeight: 1.1 }}>{set.weight}</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-2)" }}>ק"ג</span>
+                    </div>
+                    <button className="num-row__btn" style={{ width: 34, height: 34, fontSize: 20 }} onClick={() => bumpWeight(activeExerciseId!, i, 2.5)}>
+                      +
+                    </button>
                   </div>
-                  <div className="row" style={{ gap: 6 }}>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      className="input"
-                      style={{ width: 54, padding: "8px", textAlign: "center" }}
-                      value={set.reps}
-                      onChange={(e) => patchSet(activeExerciseId!, i, { reps: Number(e.target.value) || 0 })}
-                    />
-                    <span className="tiny muted">חזרות</span>
+                  <div className="col" style={{ alignItems: "center", minWidth: 38, flexShrink: 0, gap: 0 }}>
+                    <span style={{ fontSize: 21, fontWeight: 800, lineHeight: 1.1 }}>{set.reps}</span>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-2)" }}>חזרות</span>
                   </div>
                   <button
-                    className="btn btn--sm"
-                    style={
-                      set.done
-                        ? { background: "var(--good)", color: "#fff" }
-                        : { background: "var(--surface)", border: "1px solid var(--border-strong)", color: "var(--text-soft)" }
-                    }
+                    style={{
+                      width: 46,
+                      height: 46,
+                      borderRadius: 14,
+                      flexShrink: 0,
+                      border: set.done ? "none" : "2.5px solid var(--line)",
+                      background: set.done ? "var(--gold)" : "#fff",
+                      boxShadow: set.done ? "0 6px 16px -8px rgba(242,169,28,.9)" : "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                    }}
                     onClick={() => toggleDone(activeExerciseId!, i)}
                   >
-                    {set.done ? "בוצע ✓" : "בוצע"}
-                  </button>
-                  <button className="link-btn" style={{ padding: 4 }} onClick={() => removeSet(activeExerciseId!, i)}>
-                    ✕
+                    <IconCheck size={26} color={set.done ? "var(--gold-text)" : "var(--tint-2)"} strokeWidth={3.2} />
                   </button>
                 </div>
               ))}
             </div>
 
-            <button className="btn btn--ghost btn--block" onClick={() => addSet(activeExerciseId!)}>
-              + הוספת סט
+            <button className="btn btn--dashed btn--block" style={{ height: 46, borderRadius: 16 }} onClick={() => addSet(activeExerciseId!)}>
+              <IconPlus size={22} color="var(--brown-2)" />
+              הוספת סט
             </button>
+
+            <div className="row" style={{ gap: 10 }}>
+              <button
+                className="btn btn--ghost"
+                style={{ flex: 1, height: 54, borderRadius: 18, fontSize: 18 }}
+                disabled={activeIndex <= 0}
+                onClick={() => goToExercise(-1)}
+              >
+                הקודם
+              </button>
+              <button
+                className="btn btn--leather"
+                style={{ flex: 2, height: 54, borderRadius: 18, fontSize: 19 }}
+                disabled={activeIndex >= session.exercises.length - 1}
+                onClick={() => goToExercise(1)}
+              >
+                התרגיל הבא
+                <IconChevronForward size={24} color="#fff" strokeWidth={3} />
+              </button>
+            </div>
           </div>
         )}
       </Sheet>

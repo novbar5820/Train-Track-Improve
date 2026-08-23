@@ -127,6 +127,8 @@ export type ActivityLevel =
 
 export type Goal = "lose" | "maintain" | "gain";
 
+export type UnitSystem = "metric" | "imperial";
+
 export interface NutritionGoals {
   calories: number;
   protein: number;
@@ -138,6 +140,7 @@ export interface AppSettings {
   id: "singleton";
   weekStartDay: WeekStartDay;
   nutritionGoals: NutritionGoals;
+  units: UnitSystem;
   calcProfile?: {
     age: number;
     gender: "male" | "female";

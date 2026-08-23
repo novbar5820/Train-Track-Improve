@@ -1,4 +1,4 @@
-import type { WorkoutSession, WeekStartDay } from "../types";
+import type { WorkoutSession, WeekStartDay, WorkoutPlan, PlanDay } from "../types";
 import { startOfWeek, endOfWeek, addDays } from "./date";
 
 /** המשקל המקסימלי שבוצע בתרגיל נתון, מתוך סטים שסומנו כ"בוצע" */
@@ -92,6 +92,81 @@ export function computeWeeklyExerciseChanges(
 export interface WeeklyExerciseSummary {
   topImprovers: ExerciseWeekChange[]; // עד 2, מיון יורד
   leastImproved: ExerciseWeekChange | null;
+}
+
+/** התוכנית "הפעילה": זו של האימון האחרון שבוצע, ואם אין - התוכנית האחרונה שנוצרה */
+export function getActivePlan(plans: WorkoutPlan[], sessions: WorkoutSession[]): WorkoutPlan | null {
+  if (plans.length === 0) return null;
+  const lastSession = [...sessions].sort((a, b) => b.startedAt - a.startedAt)[0];
+  if (lastSession) {
+    const plan = plans.find((p) => p.id === lastSession.planId);
+    if (plan) return plan;
+  }
+  return [...plans].sort((a, b) => b.createdAt - a.createdAt)[0];
+}
+
+/** אחוז ביצוע ליום אימון: מתוך ה-session האחרון של אותו יום בשבוע הנוכחי */
+export function dayCompletionPct(
+  planId: string,
+  day: PlanDay,
+  sessions: WorkoutSession[],
+  weekStartDay: WeekStartDay,
+  referenceDate: Date = new Date()
+): number | null {
+  const start = startOfWeek(referenceDate, weekStartDay).getTime();
+  const end = endOfWeek(referenceDate, weekStartDay).getTime();
+  const candidates = sessions
+    .filter((s) => s.planId === planId && s.dayId === day.id && s.startedAt >= start && s.startedAt <= end)
+    .sort((a, b) => b.startedAt - a.startedAt);
+  const last = candidates[0];
+  if (!last) return null;
+  const totalPlanned = day.exercises.reduce((sum, e) => sum + e.targetSets, 0);
+  if (totalPlanned === 0) return 0;
+  const doneSets = last.exercises.reduce((sum, ex) => sum + ex.sets.filter((s) => s.done).length, 0);
+  return Math.min(100, (doneSets / totalPlanned) * 100);
+}
+
+/** יום התוכנית שיוצג כ"האימון של היום" - היום שאחרי האימון האחרון שבוצע, במחזוריות */
+export function pickTodaysDayIndex(plan: WorkoutPlan, sessions: WorkoutSession[]): number {
+  if (plan.days.length === 0) return 0;
+  const planSessions = sessions.filter((s) => s.planId === plan.id).sort((a, b) => b.startedAt - a.startedAt);
+  const last = planSessions[0];
+  if (!last) return 0;
+  const idx = plan.days.findIndex((d) => d.id === last.dayId);
+  if (idx === -1) return 0;
+  return (idx + 1) % plan.days.length;
+}
+
+/** הערכת משך אימון בדקות, לפי מספר סטים ומנוחה */
+export function estimateWorkoutMinutes(day: PlanDay): number {
+  const seconds = day.exercises.reduce((sum, e) => sum + e.targetSets * (45 + e.restSeconds), 0);
+  return Math.round(seconds / 60);
+}
+
+/** נפח בק"ג לרצף שבועות אחרונים (כולל הנוכחי), הכי ישן ראשון */
+export function weeklyVolumeSeries(
+  sessions: WorkoutSession[],
+  weekStartDay: WeekStartDay,
+  weeks = 6,
+  referenceDate: Date = new Date()
+): number[] {
+  const result: number[] = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const ref = addDays(referenceDate, -7 * i);
+    const start = startOfWeek(ref, weekStartDay).getTime();
+    const end = endOfWeek(ref, weekStartDay).getTime();
+    let volume = 0;
+    for (const s of sessions) {
+      if (s.startedAt < start || s.startedAt > end) continue;
+      for (const ex of s.exercises) {
+        for (const set of ex.sets) {
+          if (set.done) volume += set.weight * set.reps;
+        }
+      }
+    }
+    result.push(volume);
+  }
+  return result;
 }
 
 export function summarizeWeeklyExercises(

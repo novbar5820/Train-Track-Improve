@@ -6,8 +6,8 @@
   "scope": "/Train-Track-Improve/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f6efe2",
-  "theme_color": "#f4ecdd",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "dir": "rtl",
   "lang": "he",
   "icons": [
