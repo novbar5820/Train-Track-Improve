@@ -2,7 +2,12 @@ import { useMemo, useState } from "react";
 import { Sheet } from "./Sheet";
 import { FOODS, FOOD_CATEGORIES } from "../data/foods";
 import { IconSearch, IconClose, IconPlus, IconCheck } from "./Icons";
-import type { FoodItem } from "../types";
+import type { FoodItem, FoodUnit } from "../types";
+
+/** יחידת המידה הטבעית של המאכל - היחידה הלא-גרם המוגדרת לו, אחרת גרם */
+function naturalUnit(food: FoodItem): FoodUnit {
+  return food.units.find((u) => u.id !== "gram") ?? food.units[0];
+}
 
 export function FoodSearchSheet({
   open,
@@ -17,7 +22,7 @@ export function FoodSearchSheet({
   const [category, setCategory] = useState<string>("all");
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [grams, setGrams] = useState<Record<string, number>>({});
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const filtered = useMemo(() => {
     return FOODS.filter((f) => {
@@ -33,20 +38,28 @@ export function FoodSearchSheet({
     setEditingId(null);
   }
 
-  function gramsFor(foodId: string): number {
-    return grams[foodId] ?? 100;
+  function defaultQuantity(unit: FoodUnit): number {
+    return unit.id === "gram" ? 100 : 1;
   }
 
-  function adjustGrams(foodId: string, delta: number) {
-    setGrams((g) => ({ ...g, [foodId]: Math.max(0, gramsFor(foodId) + delta) }));
+  function stepFor(unit: FoodUnit): number {
+    return unit.id === "gram" ? 10 : 1;
   }
 
-  function setGramsFor(foodId: string, value: number) {
-    setGrams((g) => ({ ...g, [foodId]: Math.max(0, value) }));
+  function quantityFor(food: FoodItem): number {
+    return quantities[food.id] ?? defaultQuantity(naturalUnit(food));
+  }
+
+  function adjustQuantity(food: FoodItem, delta: number) {
+    setQuantities((q) => ({ ...q, [food.id]: Math.max(0, quantityFor(food) + delta) }));
+  }
+
+  function setQuantityFor(food: FoodItem, value: number) {
+    setQuantities((q) => ({ ...q, [food.id]: Math.max(0, value) }));
   }
 
   function handleAdd(food: FoodItem) {
-    onAdd(food, gramsFor(food.id), "gram");
+    onAdd(food, quantityFor(food), naturalUnit(food).id);
     setJustAddedId(food.id);
     setTimeout(() => setJustAddedId((id) => (id === food.id ? null : id)), 900);
   }
@@ -101,7 +114,8 @@ export function FoodSearchSheet({
       <div className="col" style={{ gap: 9, maxHeight: "48vh", overflowY: "auto" }}>
         {filtered.map((f) => {
           const isEditing = editingId === f.id;
-          const hasChosen = grams[f.id] !== undefined;
+          const unit = naturalUnit(f);
+          const hasChosen = quantities[f.id] !== undefined;
           return (
             <div
               key={f.id}
@@ -126,7 +140,9 @@ export function FoodSearchSheet({
                   <span style={{ fontSize: 18, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</span>
                   <span className="tiny muted">
                     {hasChosen ? (
-                      <span style={{ color: "var(--brown-2)", fontWeight: 800 }}>נבחרו {grams[f.id]} גרם</span>
+                      <span style={{ color: "var(--brown-2)", fontWeight: 800 }}>
+                        נבחרו {quantities[f.id]} {unit.label}
+                      </span>
                     ) : (
                       <>{f.category} · {f.per100g.calories} קק"ל ל-100 גרם</>
                     )}
@@ -162,23 +178,23 @@ export function FoodSearchSheet({
                   style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", gap: 8 }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <button className="num-row__btn" style={{ width: 34, height: 34, fontSize: 20 }} onClick={() => adjustGrams(f.id, -10)}>
+                  <button className="num-row__btn" style={{ width: 34, height: 34, fontSize: 20 }} onClick={() => adjustQuantity(f, -stepFor(unit))}>
                     −
                   </button>
                   <input
                     type="number"
                     inputMode="decimal"
-                    step={10}
+                    step={stepFor(unit)}
                     min={0}
                     className="input-faded"
-                    value={gramsFor(f.id)}
+                    value={quantityFor(f)}
                     autoFocus
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => setGramsFor(f.id, e.target.value === "" ? 0 : Number(e.target.value))}
+                    onChange={(e) => setQuantityFor(f, e.target.value === "" ? 0 : Number(e.target.value))}
                     style={{ width: 70, fontSize: 18, fontWeight: 800, padding: "6px 4px" }}
                   />
-                  <span style={{ fontSize: 14, fontWeight: 800, color: "var(--ink-2)" }}>גרם</span>
-                  <button className="num-row__btn" style={{ width: 34, height: 34, fontSize: 20 }} onClick={() => adjustGrams(f.id, 10)}>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: "var(--ink-2)" }}>{unit.label}</span>
+                  <button className="num-row__btn" style={{ width: 34, height: 34, fontSize: 20 }} onClick={() => adjustQuantity(f, stepFor(unit))}>
                     +
                   </button>
                   <button
