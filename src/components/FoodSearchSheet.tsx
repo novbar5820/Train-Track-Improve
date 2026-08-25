@@ -16,6 +16,8 @@ export function FoodSearchSheet({
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("all");
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [grams, setGrams] = useState<Record<string, number>>({});
 
   const filtered = useMemo(() => {
     return FOODS.filter((f) => {
@@ -28,11 +30,23 @@ export function FoodSearchSheet({
   function reset() {
     setQuery("");
     setCategory("all");
+    setEditingId(null);
+  }
+
+  function gramsFor(foodId: string): number {
+    return grams[foodId] ?? 100;
+  }
+
+  function adjustGrams(foodId: string, delta: number) {
+    setGrams((g) => ({ ...g, [foodId]: Math.max(0, gramsFor(foodId) + delta) }));
+  }
+
+  function setGramsFor(foodId: string, value: number) {
+    setGrams((g) => ({ ...g, [foodId]: Math.max(0, value) }));
   }
 
   function handleAdd(food: FoodItem) {
-    const defaultUnit = food.units.find((u) => u.id !== "gram") ?? food.units[0];
-    onAdd(food, 1, defaultUnit.id);
+    onAdd(food, gramsFor(food.id), "gram");
     setJustAddedId(food.id);
     setTimeout(() => setJustAddedId((id) => (id === food.id ? null : id)), 900);
   }
@@ -85,40 +99,110 @@ export function FoodSearchSheet({
       </div>
 
       <div className="col" style={{ gap: 9, maxHeight: "48vh", overflowY: "auto" }}>
-        {filtered.map((f) => (
-          <div
-            key={f.id}
-            className="row card--pressable"
-            style={{ gap: 12, border: "2.5px solid var(--line)", borderRadius: 18, padding: "10px 12px", cursor: "pointer" }}
-            onClick={() => handleAdd(f)}
-          >
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--brown-2)" }}>{f.per100g.calories}</span>
-            </div>
-            <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 18, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</span>
-              <span className="tiny muted">{f.category} · {f.per100g.calories} קק"ל ל-100 גרם</span>
-            </div>
-            <span
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 13,
-                background: "var(--gold)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
+        {filtered.map((f) => {
+          const isEditing = editingId === f.id;
+          const hasChosen = grams[f.id] !== undefined;
+          return (
+            <div
+              key={f.id}
+              className="card--pressable"
+              style={{ position: "relative", border: "2.5px solid var(--line)", borderRadius: 18, overflow: "hidden", cursor: "pointer", flexShrink: 0 }}
+              onClick={() => !isEditing && setEditingId(f.id)}
             >
-              {justAddedId === f.id ? (
-                <IconCheck size={24} color="var(--gold-text)" strokeWidth={3.2} />
-              ) : (
-                <IconPlus size={24} color="var(--gold-text)" strokeWidth={3.2} />
+              <div
+                className="row"
+                style={{
+                  gap: 12,
+                  padding: "10px 12px",
+                  filter: isEditing ? "blur(4px)" : "none",
+                  opacity: isEditing ? 0.4 : 1,
+                  transition: "filter .18s ease, opacity .18s ease",
+                }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 14, background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: "var(--brown-2)" }}>{f.per100g.calories}</span>
+                </div>
+                <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 18, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</span>
+                  <span className="tiny muted">
+                    {hasChosen ? (
+                      <span style={{ color: "var(--brown-2)", fontWeight: 800 }}>נבחרו {grams[f.id]} גרם</span>
+                    ) : (
+                      <>{f.category} · {f.per100g.calories} קק"ל ל-100 גרם</>
+                    )}
+                  </span>
+                </div>
+                <span
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 13,
+                    background: "var(--gold)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAdd(f);
+                  }}
+                >
+                  {justAddedId === f.id ? (
+                    <IconCheck size={24} color="var(--gold-text)" strokeWidth={3.2} />
+                  ) : (
+                    <IconPlus size={24} color="var(--gold-text)" strokeWidth={3.2} />
+                  )}
+                </span>
+              </div>
+
+              {isEditing && (
+                <div
+                  className="row"
+                  style={{ position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", gap: 8 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button className="num-row__btn" style={{ width: 34, height: 34, fontSize: 20 }} onClick={() => adjustGrams(f.id, -10)}>
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step={10}
+                    min={0}
+                    className="input-faded"
+                    value={gramsFor(f.id)}
+                    autoFocus
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setGramsFor(f.id, e.target.value === "" ? 0 : Number(e.target.value))}
+                    style={{ width: 70, fontSize: 18, fontWeight: 800, padding: "6px 4px" }}
+                  />
+                  <span style={{ fontSize: 14, fontWeight: 800, color: "var(--ink-2)" }}>גרם</span>
+                  <button className="num-row__btn" style={{ width: 34, height: 34, fontSize: 20 }} onClick={() => adjustGrams(f.id, 10)}>
+                    +
+                  </button>
+                  <button
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 11,
+                      border: "none",
+                      background: "var(--brown)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                    onClick={() => setEditingId(null)}
+                  >
+                    <IconCheck size={18} color="#fff" strokeWidth={3.4} />
+                  </button>
+                </div>
               )}
-            </span>
-          </div>
-        ))}
+            </div>
+          );
+        })}
         {filtered.length === 0 && <div className="empty-state small">לא נמצאו מאכלים</div>}
       </div>
     </Sheet>

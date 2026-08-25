@@ -38,6 +38,7 @@ export function PlanEditor() {
   }
 
   function removeDay(dayId: string) {
+    if (!confirm("למחוק את יום האימון הזה ואת כל התרגילים שבו?")) return;
     setPlan((p) => ({ ...p, days: p.days.filter((d) => d.id !== dayId) }));
   }
 

@@ -102,6 +102,14 @@ export function WorkoutSession() {
     updateExerciseSets(exerciseId, sets);
   }
 
+  function setWeight(exerciseId: string, index: number, weight: number) {
+    if (!session) return;
+    const ex = session.exercises.find((e) => e.exerciseId === exerciseId);
+    if (!ex) return;
+    const sets = ex.sets.map((s, i) => (i === index ? { ...s, weight: Math.max(0, weight) } : s));
+    updateExerciseSets(exerciseId, sets);
+  }
+
   function addSet(exerciseId: string) {
     if (!session) return;
     const ex = session.exercises.find((e) => e.exerciseId === exerciseId);
@@ -307,8 +315,18 @@ export function WorkoutSession() {
                     <button className="num-row__btn" style={{ width: 34, height: 34, fontSize: 20 }} onClick={() => bumpWeight(activeExerciseId!, i, -2.5)}>
                       −
                     </button>
-                    <div className="col" style={{ alignItems: "center", minWidth: 48, gap: 0 }}>
-                      <span style={{ fontSize: 21, fontWeight: 800, lineHeight: 1.1 }}>{set.weight}</span>
+                    <div className="col" style={{ alignItems: "center", minWidth: 62, gap: 0 }}>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step={0.5}
+                        min={0}
+                        className="input-faded"
+                        value={set.weight}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => setWeight(activeExerciseId!, i, e.target.value === "" ? 0 : Number(e.target.value))}
+                        style={{ width: 62, fontSize: 19, fontWeight: 800, lineHeight: 1.1, padding: "2px 2px" }}
+                      />
                       <span style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-2)" }}>ק"ג</span>
                     </div>
                     <button className="num-row__btn" style={{ width: 34, height: 34, fontSize: 20 }} onClick={() => bumpWeight(activeExerciseId!, i, 2.5)}>

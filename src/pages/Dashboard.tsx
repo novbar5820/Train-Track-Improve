@@ -14,6 +14,7 @@ import { macrosForLogEntry, sumMacros } from "../utils/nutrition";
 import { todayStr, greetingForHour, hebrewWeekdayShort } from "../utils/date";
 import { IconDumbbell, IconFire, IconScale, IconArrowUp, IconArrowDown, IconPlay } from "../components/Icons";
 import { TrainingDayRing } from "../components/TrainingDayRing";
+import { FitText } from "../components/FitText";
 import type { WorkoutPlan, WorkoutSession } from "../types";
 
 const DAY_LETTERS = ["A", "B", "C", "D", "E", "F", "G"];
@@ -122,19 +123,19 @@ export function Dashboard() {
               </div>
 
               <div className="row" style={{ gap: 20 }}>
-                <div className="col" style={{ flex: 1, alignItems: "center", gap: 2 }}>
+                <div className="col" style={{ flex: 1, alignItems: "center", gap: 2, minWidth: 0 }}>
                   <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ink-2)" }}>תרגילים</span>
-                  <span style={{ fontSize: 26, fontWeight: 800 }}>{day.exercises.length}</span>
+                  <FitText maxSize={26} style={{ fontWeight: 800 }}>{day.exercises.length}</FitText>
                 </div>
                 <span style={{ width: 2, height: 36, background: "var(--line-2)" }} />
-                <div className="col" style={{ flex: 1, alignItems: "center", gap: 2 }}>
+                <div className="col" style={{ flex: 1, alignItems: "center", gap: 2, minWidth: 0 }}>
                   <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ink-2)" }}>זמן משוער</span>
-                  <span style={{ fontSize: 26, fontWeight: 800 }}>{minutes} דק'</span>
+                  <FitText maxSize={26} style={{ fontWeight: 800 }}>{minutes} דק'</FitText>
                 </div>
                 <span style={{ width: 2, height: 36, background: "var(--line-2)" }} />
-                <div className="col" style={{ flex: 1, alignItems: "center", gap: 2 }}>
+                <div className="col" style={{ flex: 1, alignItems: "center", gap: 2, minWidth: 0 }}>
                   <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ink-2)" }}>נפח יעד</span>
-                  <span style={{ fontSize: 26, fontWeight: 800 }}>{formatVolume(targetVolume)}</span>
+                  <FitText maxSize={26} style={{ fontWeight: 800 }}>{formatVolume(targetVolume)}</FitText>
                 </div>
               </div>
 
