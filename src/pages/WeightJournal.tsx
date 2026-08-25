@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, DEFAULT_SETTINGS, uid } from "../db/db";
-import { todayStr, startOfWeek, parseDateStr, formatShort, formatHebrewDate, hebrewWeekdayShort } from "../utils/date";
+import { todayStr, startOfWeek, parseDateStr, toDateStr, addDays, formatShort, formatHebrewDate, hebrewWeekdayShort } from "../utils/date";
 import { compareWeeklyWeight, encouragementMessage } from "../utils/weightStats";
 import { Sheet } from "../components/Sheet";
-import { IconCheck, IconClose, IconArrowUp, IconArrowDown } from "../components/Icons";
+import { IconCheck, IconClose, IconArrowUp, IconArrowDown, IconChevronBack, IconChevronForward } from "../components/Icons";
 import type { WeightEntry } from "../types";
 
 function AreaTrendChart({ points }: { points: { label: string; value: number }[] }) {
@@ -58,14 +58,20 @@ export function WeightJournal() {
   const entries = useLiveQuery(() => db.weightLog.orderBy("date").toArray(), []) ?? [];
 
   const today = todayStr();
-  const existingToday = entries.find((e) => e.date === today);
-  const [draft, setDraft] = useState<number>(existingToday?.weightKg ?? entries[entries.length - 1]?.weightKg ?? 70);
+  const [date, setDate] = useState(today);
+  const isToday = date === today;
+  const existingForDate = entries.find((e) => e.date === date);
+  const fallbackWeight = () => {
+    const priorEntries = entries.filter((e) => e.date <= date);
+    return priorEntries[priorEntries.length - 1]?.weightKg ?? entries[entries.length - 1]?.weightKg ?? 70;
+  };
+  const [draft, setDraft] = useState<number>(existingForDate?.weightKg ?? fallbackWeight());
   const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
-    setDraft(existingToday?.weightKg ?? entries[entries.length - 1]?.weightKg ?? 70);
+    setDraft(existingForDate?.weightKg ?? fallbackWeight());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingToday?.weightKg]);
+  }, [date, existingForDate?.weightKg]);
 
   const cmp = compareWeeklyWeight(entries, settings.weekStartDay);
 
@@ -93,7 +99,7 @@ export function WeightJournal() {
   const recentDesc = [...withDeltas].sort((a, b) => (a.entry.date < b.entry.date ? 1 : -1));
 
   async function save() {
-    const entry: WeightEntry = { id: existingToday?.id ?? uid(), date: today, weightKg: draft };
+    const entry: WeightEntry = { id: existingForDate?.id ?? uid(), date, weightKg: draft };
     await db.weightLog.put(entry);
   }
 
@@ -111,7 +117,17 @@ export function WeightJournal() {
       </div>
 
       <div className="card card--gold" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-        <span style={{ fontSize: 16, fontWeight: 800, color: "var(--ink-2)" }}>השקילה של היום</span>
+        <div className="row-between">
+          <button className="topbar__icon-btn" onClick={() => setDate(toDateStr(addDays(parseDateStr(date), -1)))}>
+            <IconChevronBack size={22} color="var(--brown)" strokeWidth={3} />
+          </button>
+          <span style={{ fontSize: 16, fontWeight: 800, color: "var(--ink-2)" }}>
+            {isToday ? "השקילה של היום" : entryDateLabel(date)}
+          </span>
+          <button className="topbar__icon-btn" disabled={isToday} onClick={() => setDate(toDateStr(addDays(parseDateStr(date), 1)))}>
+            <IconChevronForward size={22} color={isToday ? "var(--muted-2)" : "var(--brown)"} strokeWidth={3} />
+          </button>
+        </div>
         <div className="row-between" style={{ gap: 10 }}>
           <button
             style={{ width: 52, height: 52, borderRadius: 17, border: "2.5px solid var(--line)", background: "#fff", fontSize: 28, fontWeight: 800, color: "var(--brown)", cursor: "pointer", lineHeight: 1 }}
@@ -120,9 +136,18 @@ export function WeightJournal() {
             −
           </button>
           <div className="row" style={{ gap: 7, alignItems: "baseline" }}>
-            <span dir="ltr" style={{ fontSize: 52, fontWeight: 800, letterSpacing: "-2px", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-              {draft.toFixed(1)}
-            </span>
+            <input
+              dir="ltr"
+              type="number"
+              inputMode="decimal"
+              step={0.1}
+              min={0}
+              className="input-faded"
+              value={draft}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => setDraft(e.target.value === "" ? 0 : Number(e.target.value))}
+              style={{ width: 130, fontSize: 52, fontWeight: 800, letterSpacing: "-2px", lineHeight: 1, fontVariantNumeric: "tabular-nums", padding: "4px 6px" }}
+            />
             <span style={{ fontSize: 18, fontWeight: 800, color: "var(--ink-2)" }}>ק"ג</span>
           </div>
           <button
@@ -134,7 +159,7 @@ export function WeightJournal() {
         </div>
         <button className="btn btn--leather" style={{ height: 58, borderRadius: 19, fontSize: 19 }} onClick={save}>
           <IconCheck size={24} color="#fff" strokeWidth={3} />
-          {existingToday ? "עדכון שקילה" : "שמירת שקילה"}
+          {existingForDate ? "עדכון שקילה" : "שמירת שקילה"}
         </button>
       </div>
 

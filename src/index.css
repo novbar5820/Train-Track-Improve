@@ -706,3 +706,27 @@ input, select, textarea {
   border: none;
   margin: 4px 0;
 }
+
+/* ---------- Faded manual-entry number input ---------- */
+.input-faded {
+  background: var(--surface-2);
+  border: 2px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  outline: none;
+  text-align: center;
+  color: var(--ink);
+  font-family: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.input-faded:focus {
+  border-color: var(--brown-2);
+  background: #fff;
+}
+.input-faded::-webkit-outer-spin-button,
+.input-faded::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.input-faded[type="number"] {
+  -moz-appearance: textfield;
+}

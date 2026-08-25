@@ -130,7 +130,9 @@ function SelectSheetRow({
 }
 
 export function Settings() {
-  const settings = useLiveQuery(() => db.settings.get("singleton")) ?? DEFAULT_SETTINGS;
+  const rawSettings = useLiveQuery(() => db.settings.get("singleton"));
+  const settingsLoaded = rawSettings !== undefined;
+  const settings = rawSettings ?? DEFAULT_SETTINGS;
   const [sheet, setSheet] = useState<SheetKey>(null);
 
   const [goals, setGoals] = useState<NutritionGoals>(settings.nutritionGoals);
@@ -146,19 +148,23 @@ export function Settings() {
   const calcPreview = calcNutritionGoals({ age, gender, heightCm, weightKg, activity, goal });
 
   async function setWeekStartDay(day: WeekStartDay) {
+    if (!settingsLoaded) return;
     await db.settings.put({ ...settings, weekStartDay: day });
   }
 
   async function setUnits(units: UnitSystem) {
+    if (!settingsLoaded) return;
     await db.settings.put({ ...settings, units });
   }
 
   async function saveGoals() {
+    if (!settingsLoaded) return;
     await db.settings.put({ ...settings, nutritionGoals: goals });
     setSheet(null);
   }
 
   async function applyCalc() {
+    if (!settingsLoaded) return;
     const computed = calcNutritionGoals({ age, gender, heightCm, weightKg, activity, goal });
     setGoals(computed);
     await db.settings.put({
