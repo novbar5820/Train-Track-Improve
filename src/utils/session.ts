@@ -13,33 +13,23 @@ function findLastPerformed(
   return null;
 }
 
-/** בונה את רשימת התרגילים לאימון חדש, עם נתוני משקל/חזרות מהפעם הקודמת */
+/** בונה את רשימת התרגילים לאימון חדש: מספר הסטים והחזרות תמיד לפי התוכנית העדכנית, המשקל מהפעם הקודמת אם קיים */
 export function buildSessionExercises(
   day: PlanDay,
   pastSessions: WorkoutSession[]
 ): SessionExercise[] {
   return day.exercises.map((planEx) => {
     const last = findLastPerformed(pastSessions, planEx.exerciseId);
-    const targetCount = planEx.targetSets;
-    let sets: SetEntry[];
+    const doneSets = last ? last.sets.filter((s) => s.done) : [];
 
-    if (last) {
-      const doneSets = last.sets.filter((s) => s.done);
-      sets = Array.from({ length: targetCount }, (_, i) => {
-        const src = doneSets[i] ?? doneSets[doneSets.length - 1];
-        return {
-          weight: src ? src.weight : 0,
-          reps: src ? src.reps : planEx.targetReps,
-          done: false,
-        };
-      });
-    } else {
-      sets = Array.from({ length: targetCount }, () => ({
-        weight: 0,
+    const sets: SetEntry[] = Array.from({ length: planEx.targetSets }, (_, i) => {
+      const src = doneSets[i] ?? doneSets[doneSets.length - 1];
+      return {
+        weight: src ? src.weight : 0,
         reps: planEx.targetReps,
         done: false,
-      }));
-    }
+      };
+    });
 
     return { exerciseId: planEx.exerciseId, sets };
   });
