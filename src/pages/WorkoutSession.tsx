@@ -110,6 +110,14 @@ export function WorkoutSession() {
     updateExerciseSets(exerciseId, sets);
   }
 
+  function setReps(exerciseId: string, index: number, reps: number) {
+    if (!session) return;
+    const ex = session.exercises.find((e) => e.exerciseId === exerciseId);
+    if (!ex) return;
+    const sets = ex.sets.map((s, i) => (i === index ? { ...s, reps: Math.max(0, Math.round(reps)) } : s));
+    updateExerciseSets(exerciseId, sets);
+  }
+
   function addSet(exerciseId: string) {
     if (!session) return;
     const ex = session.exercises.find((e) => e.exerciseId === exerciseId);
@@ -333,8 +341,18 @@ export function WorkoutSession() {
                       +
                     </button>
                   </div>
-                  <div className="col" style={{ alignItems: "center", minWidth: 38, flexShrink: 0, gap: 0 }}>
-                    <span style={{ fontSize: 21, fontWeight: 800, lineHeight: 1.1 }}>{set.reps}</span>
+                  <div className="col" style={{ alignItems: "center", minWidth: 46, flexShrink: 0, gap: 0 }}>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      step={1}
+                      min={0}
+                      className="input-faded"
+                      value={set.reps}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => setReps(activeExerciseId!, i, e.target.value === "" ? 0 : Number(e.target.value))}
+                      style={{ width: 46, fontSize: 19, fontWeight: 800, lineHeight: 1.1, padding: "2px 2px" }}
+                    />
                     <span style={{ fontSize: 12, fontWeight: 800, color: "var(--ink-2)" }}>חזרות</span>
                   </div>
                   <button
