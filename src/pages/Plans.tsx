@@ -1,14 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, DEFAULT_SETTINGS, uid } from "../db/db";
+import { db, DEFAULT_SETTINGS } from "../db/db";
 import { EXERCISES, MUSCLE_GROUP_LABELS } from "../data/exercises";
-import { buildSessionExercises } from "../utils/session";
 import { getActivePlan, dayCompletionPct } from "../utils/workoutStats";
-import { startOfWeek, endOfWeek } from "../utils/date";
-import { IconPlus, IconChevronDown, IconTrash } from "../components/Icons";
+import { IconPlus, IconChevronDown, IconChevronForward, IconTrash } from "../components/Icons";
 import { TrainingDayRing } from "../components/TrainingDayRing";
-import type { WorkoutPlan, WorkoutSession, PlanDay } from "../types";
 
 const DAY_LETTERS = ["A", "B", "C", "D", "E", "F", "G"];
 
@@ -20,29 +17,6 @@ export function Plans() {
   const activePlan = plans ? getActivePlan(plans, sessions) : null;
   const [openPlanId, setOpenPlanId] = useState<string | null | undefined>(undefined);
   const effectiveOpenId = openPlanId === undefined ? (activePlan?.id ?? null) : openPlanId;
-
-  function findWeekSession(planId: string, dayId: string): WorkoutSession | null {
-    const start = startOfWeek(new Date(), settings.weekStartDay).getTime();
-    const end = endOfWeek(new Date(), settings.weekStartDay).getTime();
-    const candidates = sessions
-      .filter((s) => s.planId === planId && s.dayId === dayId && s.startedAt >= start && s.startedAt <= end)
-      .sort((a, b) => b.startedAt - a.startedAt);
-    return candidates[0] ?? null;
-  }
-
-  async function startNewSession(plan: WorkoutPlan, day: PlanDay) {
-    const exercises = buildSessionExercises(day, sessions);
-    const session: WorkoutSession = {
-      id: uid(),
-      planId: plan.id,
-      dayId: day.id,
-      dayName: day.name,
-      startedAt: Date.now(),
-      exercises,
-    };
-    await db.sessions.put(session);
-    navigate(`/session/${session.id}`);
-  }
 
   async function deletePlan(planId: string) {
     if (!confirm("למחוק את התוכנית?")) return;
@@ -117,10 +91,13 @@ export function Plans() {
                 <div className="col" style={{ gap: 8 }}>
                   {plan.days.map((day, i) => {
                     const pct = dayCompletionPct(plan.id, day, sessions, settings.weekStartDay);
-                    const weekSession = findWeekSession(plan.id, day.id);
-                    const label = !weekSession ? "התחל" : weekSession.finishedAt ? "שוב" : "המשך";
                     return (
-                      <div key={day.id} className="row" style={{ gap: 11, border: "2.5px solid var(--line)", borderRadius: 18, padding: "9px 11px" }}>
+                      <div
+                        key={day.id}
+                        className="row card--pressable"
+                        style={{ gap: 11, border: "2.5px solid var(--line)", borderRadius: 18, padding: "9px 11px" }}
+                        onClick={() => navigate(`/plans/${plan.id}/day/${day.id}`)}
+                      >
                         <TrainingDayRing letter={DAY_LETTERS[i] ?? "?"} pct={pct} size={38} />
                         <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
                           <span style={{ fontSize: 17, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -140,18 +117,7 @@ export function Plans() {
                               .join(", ")}
                           </span>
                         </div>
-                        <button
-                          className={label === "המשך" ? "btn btn--leather" : "btn btn--ghost"}
-                          style={{ height: 40, padding: "0 16px", fontSize: 15, borderRadius: 14 }}
-                          disabled={day.exercises.length === 0}
-                          onClick={() =>
-                            weekSession && !weekSession.finishedAt
-                              ? navigate(`/session/${weekSession.id}`)
-                              : startNewSession(plan, day)
-                          }
-                        >
-                          {label}
-                        </button>
+                        <IconChevronForward size={24} color="var(--muted)" strokeWidth={3} />
                       </div>
                     );
                   })}

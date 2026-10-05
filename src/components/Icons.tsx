@@ -69,6 +69,19 @@ export function IconCheck(p: IconProps) {
   );
 }
 
+export function IconGrip({ size = 24, color = "currentColor" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      {[6, 12, 18].map((y) => (
+        <g key={y}>
+          <circle cx="9" cy={y} r="1.8" />
+          <circle cx="15" cy={y} r="1.8" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 export function IconPlus(p: IconProps) {
   return (
     <StrokeIcon {...p} strokeWidth={p.strokeWidth ?? 3}>
